@@ -23,7 +23,12 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Pirata+One&family=Almendra:ital,wght@0,400;0,700;1,400&family=Noto+Sans+Runic&display=swap" rel="stylesheet">
+<!-- Carga las tipografías sin bloquear el resto de la página: si Google Fonts
+     tarda o falla, el pergamino igual aparece (con una fuente de reserva). -->
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Pirata+One&family=Almendra:ital,wght@0,400;0,700;1,400&family=Noto+Sans+Runic&display=swap"
+      media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=Almendra:ital,wght@0,400;0,700;1,400&family=Noto+Sans+Runic&display=swap"></noscript>
 
 <style>
   :root{

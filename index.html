@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>La Saga de Carlos</title>
+
+<!--
+  ══════════════════════════════════════════════════════════════════
+  CÓMO PERSONALIZAR ESTE PERGAMINO
+  ══════════════════════════════════════════════════════════════════
+  Todo el contenido (nombre, título, texto, firma) vive en un solo
+  objeto de configuración: busca "const CONFIG" dentro de <script>,
+  al final del archivo. Cambia esos textos y la página se redibuja
+  sola — no hay que tocar el HTML ni el CSS para editar el mensaje.
+
+  Para abrir el pergamino: doble clic en este archivo, o
+  "Open with Live Server" / arrastrarlo a una pestaña de Chrome.
+  Requiere conexión a internet solo para cargar las tipografías
+  (Google Fonts); el resto funciona 100% offline.
+  ══════════════════════════════════════════════════════════════════
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pirata+One&family=Almendra:ital,wght@0,400;0,700;1,400&family=Noto+Sans+Runic&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --parchment-1:#dcc794;
+    --parchment-2:#c2a262;
+    --parchment-shadow:#5c4322;
+    --ink:#3a2410;
+    --ink-soft:#5c4527;
+    --gold:#c9a24b;
+    --gold-bright:#f0cd7a;
+    --ember:#ff7a2e;
+    --hall-1:#0b0806;
+    --hall-2:#1c130c;
+    --wood:#241812;
+    --seal-red:#7c1f1f;
+    /* madera de las varillas (torneada, foto-realista) */
+    --wood-hi:#9a6c3e;
+    --wood-mid:#5c3a1e;
+    --wood-dark:#2c1a0c;
+    --wood-ring:#180d05;
+  }
+
+  *{box-sizing:border-box;}
+
+  html,body{
+    margin:0;
+    padding:0;
+    width:100%;
+    height:100%;
+    overflow-x:hidden;
+    background:var(--hall-1);
+    color:var(--ink);
+    font-family:'Almendra', serif;
+  }
+
+  /* ── SALÓN VIKINGO DE FONDO ─────────────────────────────────── */
+  .hall{
+    position:fixed;
+    inset:0;
+    z-index:0;
+    background:
+      radial-gradient(ellipse 60% 45% at 20% 25%, rgba(255,140,50,0.16), transparent 60%),
+      radial-gradient(ellipse 55% 40% at 82% 70%, rgba(255,120,40,0.13), transparent 60%),
+      radial-gradient(ellipse 120% 90% at 50% 100%, var(--wood), var(--hall-1) 70%),
+      linear-gradient(180deg, var(--hall-1), var(--hall-2));
+    animation:flicker 6s ease-in-out infinite;
+  }
+  @keyframes flicker{
+    0%,100%{filter:brightness(1);}
+    22%{filter:brightness(1.06);}
+    38%{filter:brightness(0.95);}
+    55%{filter:brightness(1.1);}
+    70%{filter:brightness(0.97);}
+  }
+
+  canvas#embers{
+    position:fixed;
+    inset:0;
+    z-index:1;
+    pointer-events:none;
+  }
+
+  /* ── ESCENARIO ───────────────────────────────────────────────── */
+  .stage{
+    position:relative;
+    z-index:2;
+    min-height:100vh;
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:6vh 4vw;
+  }
+
+  /* ── PERGAMINO ABIERTO ───────────────────────────────────────── */
+  .scroll-open{
+    position:relative;
+    display:none;
+    width:min(980px, 94vw);
+    max-height:92vh;
+    padding:0;
+  }
+  .scroll-open.visible{ display:block; }
+
+  .parchment-frame{
+    position:relative;
+    height:0;
+    transform-origin:top center;
+    animation:unroll 1.15s cubic-bezier(.22,.61,.36,1) forwards;
+    will-change:height, transform;
+    filter:
+      drop-shadow(0 30px 55px rgba(0,0,0,0.55))
+      drop-shadow(0 8px 16px rgba(0,0,0,0.4));
+  }
+  @keyframes unroll{
+    0%{ height:90px; }
+    100%{ height:var(--target-h, 640px); }
+  }
+
+  /* Recorta solo el papel/texto (evita que se salgan durante la animación);
+     las varillas quedan fuera para poder sobresalir del marco sin cortarse. */
+  .frame-inner{
+    position:absolute;
+    inset:0;
+    overflow:hidden;
+  }
+
+  /* ── SUPERFICIE DE PAPEL (textura foto-realista, borde deshilachado) ── */
+  .paper-surface{
+    position:absolute;
+    inset:0;
+    z-index:0;
+    background-color:var(--parchment-2);
+    background-image:
+      radial-gradient(ellipse 130% 55% at 12% -5%, rgba(255,248,222,0.4), transparent 55%),
+      radial-gradient(ellipse 120% 65% at 92% 105%, rgba(50,34,14,0.32), transparent 55%),
+      radial-gradient(circle at 22% 62%, rgba(110,78,36,0.4), transparent 28%),
+      radial-gradient(circle at 80% 28%, rgba(110,78,36,0.32), transparent 24%),
+      radial-gradient(circle at 55% 88%, rgba(90,60,25,0.32), transparent 22%),
+      radial-gradient(circle at 8% 30%, rgba(90,60,25,0.28), transparent 20%),
+      linear-gradient(165deg, var(--parchment-1), var(--parchment-2) 55%, #a6864f 100%);
+    box-shadow:
+      inset 0 0 70px rgba(70,48,20,0.4),
+      inset 0 0 22px rgba(0,0,0,0.25);
+  }
+  .paper-surface::before{
+    /* grano/fibra del papel via ruido SVG (#paperNoise), sin dependencias externas */
+    content:"";
+    position:absolute;
+    inset:0;
+    background:#8a8a8a;
+    filter:url(#paperNoise);
+    opacity:0.16;
+    mix-blend-mode:multiply;
+  }
+
+  .rod-top, .rod-bottom{
+    position:absolute;
+    left:-22px; right:-22px;
+    height:24px;
+    border-radius:12px;
+    z-index:4;
+    background:
+      repeating-linear-gradient(90deg, rgba(0,0,0,0.1) 0 2px, transparent 2px 7px),
+      linear-gradient(180deg, var(--wood-hi), var(--wood-mid) 55%, var(--wood-dark));
+    box-shadow:
+      0 4px 10px rgba(0,0,0,0.5),
+      inset 0 2px 3px rgba(255,255,255,0.18),
+      inset 0 -4px 5px rgba(0,0,0,0.4);
+  }
+  .rod-top{ top:-12px; }
+  .rod-bottom{ bottom:-12px; }
+  .rod-top::before, .rod-top::after,
+  .rod-bottom::before, .rod-bottom::after{
+    content:"";
+    position:absolute;
+    top:-10px; bottom:-10px;
+    width:36px;
+    border-radius:50%;
+    background-image:
+      repeating-radial-gradient(circle at 33% 28%, transparent 0 3px, rgba(0,0,0,0.16) 3px 4px),
+      radial-gradient(circle at 33% 28%, #c99a5e, var(--wood-mid) 55%, var(--wood-dark) 88%);
+    box-shadow:
+      inset 0 0 0 3px rgba(0,0,0,0.22),
+      inset -7px 0 12px rgba(0,0,0,0.45),
+      0 3px 7px rgba(0,0,0,0.55);
+  }
+  .rod-top::before, .rod-bottom::before{ left:-11px; }
+  .rod-top::after, .rod-bottom::after{ right:-11px; }
+
+  .content{
+    position:relative;
+    z-index:2;
+    height:100%;
+    overflow-y:auto;
+    padding:64px clamp(28px,6vw,84px) 56px;
+  }
+
+  .content::-webkit-scrollbar{ width:10px; }
+  .content::-webkit-scrollbar-thumb{ background:var(--parchment-shadow); border-radius:6px; }
+  .content::-webkit-scrollbar-track{ background:transparent; }
+
+  .runes-line{
+    text-align:center;
+    font-family:'Noto Sans Runic', serif;
+    font-size:clamp(20px, 3.4vw, 30px);
+    letter-spacing:6px;
+    color:var(--seal-red);
+    opacity:0.75;
+    margin-bottom:6px;
+  }
+
+  .greeting{
+    text-align:left;
+    font-family:'Pirata One', cursive;
+    font-size:clamp(42px, 7.5vw, 72px);
+    letter-spacing:2px;
+    color:var(--ink);
+    text-shadow:0 2px 0 rgba(255,255,255,0.25), 0 -1px 0 rgba(0,0,0,0.15);
+    margin:0 0 22px;
+  }
+  .greeting .letter{
+    display:inline-block;
+    opacity:0;
+    filter:blur(3px);
+    transform:translateY(10px) rotate(-2deg);
+    animation:carve .5s cubic-bezier(.22,.61,.36,1) forwards;
+  }
+  @keyframes carve{
+    to{ opacity:1; filter:blur(0); transform:translateY(0) rotate(0); }
+  }
+
+  .quote{
+    text-align:left;
+    font-style:italic;
+    font-weight:600;
+    color:var(--ink);
+    font-size:clamp(21px, 3vw, 29px);
+    line-height:1.55;
+    margin:0 0 30px;
+    opacity:0;
+    filter:blur(4px);
+    transform:translateY(10px);
+    animation:fadeUp .65s cubic-bezier(.22,.61,.36,1) forwards;
+  }
+
+  .paragraph{
+    text-align:justify;
+    font-size:clamp(19px, 2.7vw, 27px);
+    line-height:1.75;
+    color:var(--ink);
+    margin:0 0 26px;
+    opacity:0;
+    filter:blur(4px);
+    transform:translateY(10px);
+    animation:fadeUp .65s cubic-bezier(.22,.61,.36,1) forwards;
+  }
+  @keyframes fadeUp{
+    to{ opacity:1; filter:blur(0); transform:translateY(0); }
+  }
+
+  /* Palabras clave "rubricadas" en rojo, como en un manuscrito iluminado */
+  .highlight{
+    color:var(--seal-red);
+    font-weight:700;
+    text-decoration:underline;
+    text-decoration-color:var(--gold);
+    text-decoration-thickness:2px;
+    text-underline-offset:4px;
+  }
+
+  .closing{
+    text-align:center;
+    font-family:'Pirata One', cursive;
+    font-size:clamp(38px, 6.6vw, 58px);
+    letter-spacing:1px;
+    color:var(--seal-red);
+    text-shadow:0 1px 0 rgba(255,255,255,0.25);
+    margin:34px 0 8px;
+    opacity:0;
+    filter:blur(4px);
+    transform:translateY(10px);
+    animation:fadeUp .7s cubic-bezier(.22,.61,.36,1) forwards;
+  }
+
+  .signature{
+    text-align:center;
+    font-style:italic;
+    font-weight:bold;
+    font-size:clamp(21px, 3vw, 28px);
+    color:var(--ink);
+    margin:0;
+    opacity:0;
+    filter:blur(4px);
+    transform:translateY(10px);
+    animation:fadeUp .65s cubic-bezier(.22,.61,.36,1) forwards;
+  }
+
+  .toast-btn{
+    display:block;
+    margin:38px auto 4px;
+    padding:14px 38px;
+    font-family:'Pirata One', cursive;
+    font-size:clamp(19px, 2.8vw, 24px);
+    letter-spacing:2px;
+    color:var(--gold-bright);
+    background:linear-gradient(160deg, #2a1b0f, #17100a);
+    border:1px solid var(--gold);
+    border-radius:30px;
+    cursor:pointer;
+    box-shadow:0 8px 18px rgba(0,0,0,0.4);
+    opacity:0;
+    filter:blur(4px);
+    transform:translateY(10px);
+    animation:fadeUp .65s cubic-bezier(.22,.61,.36,1) forwards;
+    transition:transform .2s ease, box-shadow .2s ease;
+  }
+  .toast-btn:hover{
+    transform:translateY(-3px);
+    box-shadow:0 12px 24px rgba(0,0,0,0.5), 0 0 18px rgba(240,205,122,0.4);
+  }
+  .toast-btn:active{ transform:translateY(0); }
+
+  /* ── PANTALLA DE REGALO (fotos + descarga) ──────────────────────── */
+  .gift-screen{
+    position:fixed;
+    inset:0;
+    z-index:10;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:8vh 5vw;
+    opacity:0;
+    transition:opacity .9s ease;
+  }
+  .gift-screen.visible{ display:flex; opacity:1; }
+
+  .gift-inner{ max-width:1080px; width:100%; text-align:center; }
+
+  .gift-title{
+    font-family:'Pirata One', cursive;
+    font-size:clamp(32px, 6vw, 54px);
+    letter-spacing:1px;
+    color:var(--gold-bright);
+    text-shadow:0 0 18px rgba(255,150,60,0.45), 0 2px 4px rgba(0,0,0,0.6);
+    margin:0 0 10px;
+  }
+  .gift-subtitle{
+    font-family:'Almendra', serif;
+    font-style:italic;
+    color:var(--gold);
+    font-size:clamp(20px, 3vw, 28px);
+    margin:0 0 38px;
+  }
+
+  .gift-gallery{
+    display:flex;
+    flex-wrap:wrap;
+    gap:clamp(16px, 3vw, 30px);
+    justify-content:center;
+    margin-bottom:40px;
+  }
+  .gift-frame{
+    position:relative;
+    width:min(240px, 40vw);
+    border-radius:10px;
+    padding:9px;
+    background:linear-gradient(160deg, var(--parchment-1), var(--parchment-2));
+    box-shadow:0 16px 32px rgba(0,0,0,0.55), 0 0 0 4px var(--gold);
+    transition:transform .3s ease, box-shadow .3s ease;
+  }
+  .gift-frame:hover{
+    transform:translateY(-6px) scale(1.02);
+    box-shadow:0 22px 40px rgba(0,0,0,0.6), 0 0 0 4px var(--gold-bright);
+  }
+  .gift-hint{
+    font-family:'Almendra', serif;
+    font-size:13px;
+    color:var(--gold);
+    opacity:0.85;
+    margin:14px 0 0;
+  }
+  .gift-frame img{
+    display:block;
+    width:100%;
+    aspect-ratio:9/16;
+    object-fit:cover;
+    border-radius:6px;
+  }
+
+  @media (max-width:520px){
+    .parchment-frame{ filter:drop-shadow(0 20px 38px rgba(0,0,0,0.6)); }
+    .content{ padding:44px 20px 36px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Filtro de ruido para simular fibra/grano de papel real (sin imágenes externas) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="paperNoise">
+    <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" seed="7" stitchTiles="stitch" result="noise"/>
+    <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 2.2 -0.55"/>
+  </filter>
+</svg>
+
+<div class="hall"></div>
+<canvas id="embers"></canvas>
+
+<div class="stage">
+
+  <!-- Pergamino abierto: se rellena dinámicamente con JS -->
+  <div class="scroll-open" id="scrollOpen">
+    <div class="parchment-frame" id="parchmentFrame">
+      <div class="frame-inner">
+        <div class="paper-surface" id="paperSurface"></div>
+        <div class="content" id="content"></div>
+      </div>
+      <div class="rod-top"></div>
+      <div class="rod-bottom"></div>
+    </div>
+  </div>
+
+  <!-- Pantalla de regalo: fotos + descarga, aparece tras cerrar el pergamino -->
+  <div class="gift-screen" id="giftScreen">
+    <div class="gift-inner">
+      <h2 class="gift-title">Un regalo para ti, Carlos</h2>
+      <p class="gift-subtitle">Guarda estos recuerdos de tu día ⚔</p>
+      <div class="gift-gallery">
+        <div class="gift-frame"><img src="fotos/foto-1.png" alt="Carlos, guerrero vikingo 1"></div>
+        <div class="gift-frame"><img src="fotos/foto-2.png" alt="Carlos, guerrero vikingo 2"></div>
+        <div class="gift-frame"><img src="fotos/foto-3.png" alt="Carlos, guerrero vikingo 3"></div>
+      </div>
+      <button class="toast-btn" id="downloadBtn">⬇ Descargar mis fotos</button>
+      <p class="gift-hint">En el celular, elige "Guardar en Fotos" / "Guardar imagen" en el menú que se abra. En computadora, si tu navegador pregunta por permiso para descargar varios archivos, elige "Permitir".</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   CONFIG — edita SOLO esta sección para cambiar el contenido.
+   ══════════════════════════════════════════════════════════════════ */
+const CONFIG = {
+  runesCaption: "ᚲᚨᚱᛚᛟᛊ", // "CARLOS" transliterado a Futhark antiguo (decorativo)
+  greeting: "Carlos,",
+  quote: "“El que sabe lo que siembra, sabe lo que cosecha”",
+  paragraphs: [
+    "Cuando tus semillas son de Fe, Amor, Esfuerzo y Bondad.",
+    "La cosecha solo puede traer abundancia.",
+    "Sigue confiando en Dios, que hace crecer todo lo que pones en sus manos."
+  ],
+  closing: "¡Feliz cumpleaños!",
+  signature: "Kigo Team",
+  toastLabel: "Ir a mi sorpresa 🎉"
+};
+/* ══════════════════════════════════════════════════════════════════ */
+
+const scrollOpen    = document.getElementById('scrollOpen');
+const parchment     = document.getElementById('parchmentFrame');
+const paperSurface  = document.getElementById('paperSurface');
+const contentEl     = document.getElementById('content');
+const giftScreen    = document.getElementById('giftScreen');
+const downloadBtn   = document.getElementById('downloadBtn');
+
+// ── Fotos de regalo (deben vivir en la carpeta /fotos junto a este archivo) ──
+const GIFT_PHOTOS = ['fotos/foto-1.png', 'fotos/foto-2.png', 'fotos/foto-3.png'];
+
+// ── Construye el saludo letra a letra (para el efecto "tallado") ──
+function buildGreeting(text){
+  const wrap = document.createElement('h1');
+  wrap.className = 'greeting';
+  [...text].forEach((ch, i) => {
+    const span = document.createElement('span');
+    span.className = 'letter';
+    span.textContent = ch === ' ' ? ' ' : ch;
+    span.style.animationDelay = (0.1 + i * 0.02) + 's';
+    wrap.appendChild(span);
+  });
+  return wrap;
+}
+
+// ── Genera un borde deshilachado/irregular para la hoja de papel ──
+function tornEdgeClipPath(pointsPerSide){
+  const rand = (min, max) => min + Math.random() * (max - min);
+  const pts = [[0,0],[100,0]];
+  for (let i = 1; i < pointsPerSide; i++){
+    pts.push([100 - rand(0, 3.2), (i / pointsPerSide) * 100]);
+  }
+  pts.push([100,100],[0,100]);
+  for (let i = pointsPerSide - 1; i >= 1; i--){
+    pts.push([rand(0, 3.2), (i / pointsPerSide) * 100]);
+  }
+  return 'polygon(' + pts.map(p => `${p[0].toFixed(2)}% ${p[1].toFixed(2)}%`).join(',') + ')';
+}
+
+// ── Palabras clave que se resaltan en rojo, como en un manuscrito iluminado ──
+const HIGHLIGHT_WORDS = ['Fe', 'Amor', 'Esfuerzo', 'Bondad', 'Abundancia', 'confiando en Dios'];
+
+function escapeHtml(str){
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function highlightWords(text){
+  let html = escapeHtml(text);
+  HIGHLIGHT_WORDS.forEach((word) => {
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp('\\b(' + escaped + ')\\b', 'gi');
+    html = html.replace(re, '<span class="highlight">$1</span>');
+  });
+  return html;
+}
+
+// ── Renderiza todo el contenido dinámico dentro del pergamino ──
+function renderContent(cfg){
+  contentEl.innerHTML = '';
+
+  const runes = document.createElement('div');
+  runes.className = 'runes-line';
+  runes.textContent = cfg.runesCaption;
+  contentEl.appendChild(runes);
+
+  contentEl.appendChild(buildGreeting(cfg.greeting));
+
+  const quote = document.createElement('p');
+  quote.className = 'quote';
+  quote.textContent = cfg.quote;
+  quote.style.animationDelay = '0.5s';
+  contentEl.appendChild(quote);
+
+  let delay = 0.72;
+  cfg.paragraphs.forEach((text) => {
+    const p = document.createElement('p');
+    p.className = 'paragraph';
+    p.innerHTML = highlightWords(text);
+    p.style.animationDelay = delay + 's';
+    contentEl.appendChild(p);
+    delay += 0.12;
+  });
+
+  const closing = document.createElement('p');
+  closing.className = 'closing';
+  closing.textContent = cfg.closing;
+  closing.style.animationDelay = delay + 's';
+  contentEl.appendChild(closing);
+  delay += 0.14;
+
+  const sig = document.createElement('p');
+  sig.className = 'signature';
+  sig.textContent = cfg.signature;
+  sig.style.animationDelay = delay + 's';
+  contentEl.appendChild(sig);
+  delay += 0.14;
+
+  const btn = document.createElement('button');
+  btn.className = 'toast-btn';
+  btn.textContent = cfg.toastLabel;
+  btn.style.animationDelay = delay + 's';
+  btn.addEventListener('click', celebrate);
+  contentEl.appendChild(btn);
+}
+
+// ── Calcula la altura objetivo del pergamino según el contenido ──
+function setTargetHeight(){
+  const vh = window.innerHeight * 0.9;
+  const natural = contentEl.scrollHeight + 40;
+  const target = Math.min(natural, vh, 900);
+  parchment.style.setProperty('--target-h', target + 'px');
+}
+
+// ── Revela el pergamino ya abierto, rápido y directo (sin pasos previos) ──
+function revealScroll(){
+  renderContent(CONFIG);
+  paperSurface.style.clipPath = tornEdgeClipPath(16);
+  scrollOpen.classList.add('visible');
+  // fuerza reflow para poder calcular scrollHeight antes de animar
+  requestAnimationFrame(() => {
+    setTargetHeight();
+    parchment.style.animation = 'none';
+    // reinicia la animación de unroll con la altura ya calculada
+    void parchment.offsetHeight;
+    parchment.style.animation = '';
+  });
+}
+
+// ── Lanza un estallido de serpentinas de colores por toda la pantalla ──
+// ── Cierra el pergamino (se enrolla) y da paso a la pantalla de regalo ──
+function closeParchmentAndRevealGift(){
+  scrollOpen.style.transition = 'transform .7s cubic-bezier(.4,0,.2,1), opacity .6s ease';
+  scrollOpen.style.transformOrigin = 'top center';
+  scrollOpen.style.transform = 'scaleY(0.06) scale(0.92)';
+  scrollOpen.style.opacity = '0';
+  setTimeout(() => {
+    scrollOpen.classList.remove('visible');
+    giftScreen.classList.add('visible');
+  }, 680);
+}
+
+// ── Al pulsar "¡A celebrar!": serpentinas, cierre del pergamino y regalo ──
+function celebrate(){
+  burstEmbers();
+  setTimeout(closeParchmentAndRevealGift, 450);
+}
+
+// ── Descarga las 3 fotos de regalo, una tras otra ──
+// ── Descarga directa (respaldo para escritorio) ──
+function downloadPhotosFallback(){
+  // Todas las descargas se disparan en el mismo gesto de clic (sin setTimeout):
+  // los navegadores bloquean descargas múltiples que no ocurren de forma síncrona
+  // dentro del gesto del usuario.
+  GIFT_PHOTOS.forEach((src, i) => {
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = `Carlos-cumpleanos-${i + 1}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+}
+
+downloadBtn.addEventListener('click', async () => {
+  // En celular usamos el menú nativo de compartir: ahí el usuario elige
+  // "Guardar en Fotos" / "Guardar imagen" y las 3 fotos quedan en su galería
+  // (una descarga normal en el teléfono suele ir a "Descargas", no a la galería).
+  try {
+    const files = await Promise.all(GIFT_PHOTOS.map(async (src, i) => {
+      const res = await fetch(src);
+      const blob = await res.blob();
+      return new File([blob], `Carlos-cumpleanos-${i + 1}.png`, { type: blob.type || 'image/png' });
+    }));
+
+    if (navigator.canShare && navigator.canShare({ files })) {
+      await navigator.share({
+        files,
+        title: 'Fotos de cumpleaños de Carlos',
+        text: '¡Feliz cumpleaños, Carlos! 🎉'
+      });
+      return;
+    }
+  } catch (err) {
+    if (err && err.name === 'AbortError') return; // el usuario cerró el menú de compartir, respetamos su elección
+    // navigator.share no existe, falló la descarga de las imágenes, etc.: seguimos con el respaldo.
+  }
+  downloadPhotosFallback();
+});
+
+window.addEventListener('resize', () => {
+  if (scrollOpen.classList.contains('visible')) setTargetHeight();
+});
+
+// ── Se abre solo, sin pergamino cerrado ni clics, apenas carga la página ──
+revealScroll();
+
+/* ══════════════════════════════════════════════════════════════════
+   AMBIENTE — pequeñas brasas/embers flotando sobre el salón vikingo
+   (canvas ligero, sin dependencias externas)
+   ══════════════════════════════════════════════════════════════════ */
+const canvas = document.getElementById('embers');
+const ctx = canvas.getContext('2d');
+let W, H, particles = [];
+
+function resize(){
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function makeParticle(x, y, burst){
+  return {
+    x: x ?? Math.random() * W,
+    y: y ?? H + 10,
+    r: Math.random() * (burst ? 3.5 : 2.2) + 0.6,
+    vy: -(Math.random() * (burst ? 3.2 : 0.9) + (burst ? 1 : 0.3)),
+    vx: (Math.random() - 0.5) * (burst ? 3 : 0.4),
+    life: 0,
+    maxLife: Math.random() * 260 + 180,
+    hue: Math.random() * 30 + 12
+  };
+}
+for (let i = 0; i < 45; i++) particles.push(makeParticle(undefined, Math.random()*H));
+
+function burstEmbers(){
+  const cx = W/2, cy = H*0.5;
+  for (let i = 0; i < 110; i++) particles.push(makeParticle(cx, cy, true));
+}
+
+function tick(){
+  ctx.clearRect(0,0,W,H);
+  particles.forEach(p => {
+    p.life++;
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vx += Math.sin(p.life*0.02) * 0.01;
+    const fade = 1 - p.life / p.maxLife;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    ctx.fillStyle = `hsla(${p.hue}, 90%, 55%, ${Math.max(fade,0)*0.85})`;
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = `hsla(${p.hue}, 90%, 55%, ${Math.max(fade,0)})`;
+    ctx.fill();
+  });
+  particles = particles.filter(p => p.life < p.maxLife && p.y > -20);
+  while (particles.length < 45) particles.push(makeParticle(undefined, H + Math.random()*40));
+  requestAnimationFrame(tick);
+}
+tick();
+</script>
+</body>
+</html>

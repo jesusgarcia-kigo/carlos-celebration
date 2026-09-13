@@ -438,7 +438,7 @@
         <div class="gift-frame"><img src="fotos/foto-3.png" alt="Carlos, guerrero vikingo 3"></div>
       </div>
       <button class="toast-btn" id="downloadBtn">⬇ Descargar mis fotos</button>
-      <p class="gift-hint">En el celular, elige "Guardar en Fotos" / "Guardar imagen" en el menú que se abra. En computadora, si tu navegador pregunta por permiso para descargar varios archivos, elige "Permitir".</p>
+      <p class="gift-hint">Si tu navegador pregunta por permiso para descargar varios archivos, elige "Permitir".</p>
     </div>
   </div>
 
@@ -611,8 +611,7 @@ function celebrate(){
 }
 
 // ── Descarga las 3 fotos de regalo, una tras otra ──
-// ── Descarga directa (respaldo para escritorio) ──
-function downloadPhotosFallback(){
+function downloadPhotos(){
   // Todas las descargas se disparan en el mismo gesto de clic (sin setTimeout):
   // los navegadores bloquean descargas múltiples que no ocurren de forma síncrona
   // dentro del gesto del usuario.
@@ -626,31 +625,7 @@ function downloadPhotosFallback(){
   });
 }
 
-downloadBtn.addEventListener('click', async () => {
-  // En celular usamos el menú nativo de compartir: ahí el usuario elige
-  // "Guardar en Fotos" / "Guardar imagen" y las 3 fotos quedan en su galería
-  // (una descarga normal en el teléfono suele ir a "Descargas", no a la galería).
-  try {
-    const files = await Promise.all(GIFT_PHOTOS.map(async (src, i) => {
-      const res = await fetch(src);
-      const blob = await res.blob();
-      return new File([blob], `Carlos-cumpleanos-${i + 1}.png`, { type: blob.type || 'image/png' });
-    }));
-
-    if (navigator.canShare && navigator.canShare({ files })) {
-      await navigator.share({
-        files,
-        title: 'Fotos de cumpleaños de Carlos',
-        text: '¡Feliz cumpleaños, Carlos! 🎉'
-      });
-      return;
-    }
-  } catch (err) {
-    if (err && err.name === 'AbortError') return; // el usuario cerró el menú de compartir, respetamos su elección
-    // navigator.share no existe, falló la descarga de las imágenes, etc.: seguimos con el respaldo.
-  }
-  downloadPhotosFallback();
-});
+downloadBtn.addEventListener('click', downloadPhotos);
 
 window.addEventListener('resize', () => {
   if (scrollOpen.classList.contains('visible')) setTargetHeight();

@@ -113,27 +113,36 @@
   }
   .scroll-open.visible{ display:block; }
 
+  /* La altura es fija desde el inicio (no se anima): así el fondo de papel
+     —textura de ruido SVG + varios gradientes— se pinta una sola vez a su
+     tamaño final, en vez de tener que recalcularse en cada fotograma con
+     un tamaño distinto (eso era lo que hacía lenta la apertura). Lo que
+     se anima es el recorte (clip-path) de .frame-inner, más barato. */
   .parchment-frame{
     position:relative;
-    height:0;
-    transform-origin:top center;
-    animation:unroll 1.15s cubic-bezier(.22,.61,.36,1) forwards;
-    will-change:height, transform;
+    height:var(--target-h, 640px);
     filter:
       drop-shadow(0 30px 55px rgba(0,0,0,0.55))
       drop-shadow(0 8px 16px rgba(0,0,0,0.4));
   }
-  @keyframes unroll{
-    0%{ height:90px; }
-    100%{ height:var(--target-h, 640px); }
-  }
 
   /* Recorta solo el papel/texto (evita que se salgan durante la animación);
-     las varillas quedan fuera para poder sobresalir del marco sin cortarse. */
+     las varillas quedan fuera para poder sobresalir del marco sin cortarse.
+     El propio recorte es lo que crea el efecto de "desenrollado": arranca
+     casi cerrado y se abre hacia abajo. Animar clip-path es un trabajo de
+     compositor (como transform/opacity), no de layout, así que es mucho
+     más fluido que animar height. */
   .frame-inner{
     position:absolute;
     inset:0;
     overflow:hidden;
+    clip-path:inset(0 0 96% 0);
+    animation:unroll 1.15s cubic-bezier(.22,.61,.36,1) forwards;
+    will-change:clip-path;
+  }
+  @keyframes unroll{
+    0%{ clip-path:inset(0 0 96% 0); }
+    100%{ clip-path:inset(0 0 0% 0); }
   }
 
   /* ── SUPERFICIE DE PAPEL (textura foto-realista, borde deshilachado) ── */
@@ -180,7 +189,20 @@
       inset 0 -4px 5px rgba(0,0,0,0.4);
   }
   .rod-top{ top:-12px; }
-  .rod-bottom{ bottom:-12px; }
+  /* La varilla inferior arranca justo debajo de la superior y "cae" hasta su
+     lugar final en sincronía con el clip-path de .frame-inner, para que
+     siga pareciendo que el pergamino se desenrolla físicamente aunque el
+     marco ya tenga su altura final desde el primer fotograma. translateY
+     es, igual que clip-path, una animación de compositor (barata). */
+  .rod-bottom{
+    bottom:-12px;
+    animation:rod-drop 1.15s cubic-bezier(.22,.61,.36,1) forwards;
+    will-change:transform;
+  }
+  @keyframes rod-drop{
+    0%{ transform:translateY(calc(-0.96 * var(--target-h, 640px))); }
+    100%{ transform:translateY(0); }
+  }
   .rod-top::before, .rod-top::after,
   .rod-bottom::before, .rod-bottom::after{
     content:"";
@@ -423,12 +445,12 @@
   <!-- Pergamino abierto: se rellena dinámicamente con JS -->
   <div class="scroll-open" id="scrollOpen">
     <div class="parchment-frame" id="parchmentFrame">
-      <div class="frame-inner">
+      <div class="frame-inner" id="frameInner">
         <div class="paper-surface" id="paperSurface"></div>
         <div class="content" id="content"></div>
       </div>
       <div class="rod-top"></div>
-      <div class="rod-bottom"></div>
+      <div class="rod-bottom" id="rodBottom"></div>
     </div>
   </div>
 
@@ -437,11 +459,14 @@
     <div class="gift-inner">
       <h2 class="gift-title">Un regalo para ti, Carlos</h2>
       <p class="gift-subtitle">Guarda estos recuerdos de tu día ⚔</p>
+      <!-- Vista previa: miniaturas livianas (fotos/thumbs) para que carguen rápido.
+           La descarga real usa siempre el PNG original en fotos/, a calidad y
+           peso completos — ver GIFT_PHOTOS más abajo. -->
       <div class="gift-gallery">
-        <div class="gift-frame"><img src="fotos/foto-1.png" alt="Carlos, guerrero vikingo 1"></div>
-        <div class="gift-frame"><img src="fotos/foto-2.png" alt="Carlos, guerrero vikingo 2"></div>
-        <div class="gift-frame"><img src="fotos/foto-3.png" alt="Carlos, guerrero vikingo 3"></div>
-        <div class="gift-frame"><img src="fotos/felicidades-carlos.png" alt="Mensaje de cumpleaños para Carlos"></div>
+        <div class="gift-frame"><img src="fotos/thumbs/foto-1.jpg" loading="lazy" decoding="async" alt="Carlos, guerrero vikingo 1"></div>
+        <div class="gift-frame"><img src="fotos/thumbs/foto-2.jpg" loading="lazy" decoding="async" alt="Carlos, guerrero vikingo 2"></div>
+        <div class="gift-frame"><img src="fotos/thumbs/foto-3.jpg" loading="lazy" decoding="async" alt="Carlos, guerrero vikingo 3"></div>
+        <div class="gift-frame"><img src="fotos/thumbs/felicidades-carlos.jpg" loading="lazy" decoding="async" alt="Mensaje de cumpleaños para Carlos"></div>
       </div>
       <button class="toast-btn" id="downloadBtn">⬇ Descargar mis fotos</button>
       <p class="gift-hint">En iPhone/iPad se abrirá el panel para compartir: toca "Guardar imagen" para que caigan en tu Galería. En Android o computadora, si el navegador pregunta por permiso para descargar varios archivos, elige "Permitir".</p>
@@ -472,6 +497,8 @@ const CONFIG = {
 
 const scrollOpen    = document.getElementById('scrollOpen');
 const parchment     = document.getElementById('parchmentFrame');
+const frameInner    = document.getElementById('frameInner');
+const rodBottom     = document.getElementById('rodBottom');
 const paperSurface  = document.getElementById('paperSurface');
 const contentEl     = document.getElementById('content');
 const giftScreen    = document.getElementById('giftScreen');
@@ -590,10 +617,13 @@ function revealScroll(){
   // fuerza reflow para poder calcular scrollHeight antes de animar
   requestAnimationFrame(() => {
     setTargetHeight();
-    parchment.style.animation = 'none';
-    // reinicia la animación de unroll con la altura ya calculada
-    void parchment.offsetHeight;
-    parchment.style.animation = '';
+    // reinicia el clip-path (papel) y el translateY (varilla inferior) ya
+    // con --target-h calculada, para que arranquen sincronizados desde cero
+    frameInner.style.animation = 'none';
+    rodBottom.style.animation = 'none';
+    void frameInner.offsetHeight;
+    frameInner.style.animation = '';
+    rodBottom.style.animation = '';
   });
 }
 
@@ -683,6 +713,28 @@ function resize(){
 window.addEventListener('resize', resize);
 resize();
 
+// ── Sprites de brasa pre-renderizados (con su resplandor ya incluido) ──
+// ctx.shadowBlur recalcula un blur por partícula en CADA fotograma; con
+// decenas de partículas a la vez (y más aún durante el estallido de
+// celebrate()) es un costo alto, sobre todo en WebViews. Pre-renderizar
+// el resplandor una sola vez y luego solo "pegarlo" con drawImage es
+// muchísimo más barato y se ve igual.
+const EMBER_SPRITE_SIZE = 24;
+const EMBER_HUES = [14, 22, 30, 38]; // variación de tono ámbar/rojo, como antes
+const emberSprites = EMBER_HUES.map(hue => {
+  const spr = document.createElement('canvas');
+  spr.width = spr.height = EMBER_SPRITE_SIZE;
+  const sctx = spr.getContext('2d');
+  const c = EMBER_SPRITE_SIZE / 2;
+  const grad = sctx.createRadialGradient(c, c, 0, c, c, c);
+  grad.addColorStop(0,    `hsla(${hue}, 95%, 72%, 1)`);
+  grad.addColorStop(0.35, `hsla(${hue}, 90%, 55%, 0.75)`);
+  grad.addColorStop(1,    `hsla(${hue}, 90%, 55%, 0)`);
+  sctx.fillStyle = grad;
+  sctx.fillRect(0, 0, EMBER_SPRITE_SIZE, EMBER_SPRITE_SIZE);
+  return spr;
+});
+
 function makeParticle(x, y, burst){
   return {
     x: x ?? Math.random() * W,
@@ -692,7 +744,7 @@ function makeParticle(x, y, burst){
     vx: (Math.random() - 0.5) * (burst ? 3 : 0.4),
     life: 0,
     maxLife: Math.random() * 260 + 180,
-    hue: Math.random() * 30 + 12
+    sprite: emberSprites[(Math.random() * emberSprites.length) | 0]
   };
 }
 for (let i = 0; i < 45; i++) particles.push(makeParticle(undefined, Math.random()*H));
@@ -709,14 +761,12 @@ function tick(){
     p.x += p.vx;
     p.y += p.vy;
     p.vx += Math.sin(p.life*0.02) * 0.01;
-    const fade = 1 - p.life / p.maxLife;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-    ctx.fillStyle = `hsla(${p.hue}, 90%, 55%, ${Math.max(fade,0)*0.85})`;
-    ctx.shadowBlur = 8;
-    ctx.shadowColor = `hsla(${p.hue}, 90%, 55%, ${Math.max(fade,0)})`;
-    ctx.fill();
+    const fade = Math.max(1 - p.life / p.maxLife, 0);
+    const size = (p.r + 2) * 4; // el sprite es más grande que el punto: ahí vive el glow
+    ctx.globalAlpha = fade * 0.85;
+    ctx.drawImage(p.sprite, p.x - size / 2, p.y - size / 2, size, size);
   });
+  ctx.globalAlpha = 1;
   particles = particles.filter(p => p.life < p.maxLife && p.y > -20);
   while (particles.length < 45) particles.push(makeParticle(undefined, H + Math.random()*40));
   requestAnimationFrame(tick);

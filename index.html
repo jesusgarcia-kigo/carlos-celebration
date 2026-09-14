@@ -443,7 +443,7 @@
         <div class="gift-frame"><img src="fotos/foto-3.png" alt="Carlos, guerrero vikingo 3"></div>
       </div>
       <button class="toast-btn" id="downloadBtn">⬇ Descargar mis fotos</button>
-      <p class="gift-hint">Si tu navegador pregunta por permiso para descargar varios archivos, elige "Permitir".</p>
+      <p class="gift-hint">En iPhone/iPad se abrirá el panel para compartir: toca "Guardar imagen" para que caigan en tu Galería. En Android o computadora, si el navegador pregunta por permiso para descargar varios archivos, elige "Permitir".</p>
     </div>
   </div>
 
@@ -630,7 +630,35 @@ function downloadPhotos(){
   });
 }
 
-downloadBtn.addEventListener('click', downloadPhotos);
+// ── Detecta iPhone/iPad/iPod (incluye iPadOS, que se anuncia como "Mac" con touch) ──
+function isIOS(){
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+downloadBtn.addEventListener('click', async () => {
+  // En iOS, Safari NO permite guardar una imagen directo en la Galería sin pasar
+  // por el panel nativo de compartir (restricción de Apple) — ahí el usuario toca
+  // "Guardar imagen" y sí cae en Fotos. Sin esto, en iOS la descarga va a Archivos.
+  // En Android/computadora seguimos con la descarga directa de siempre.
+  if (isIOS() && navigator.share){
+    try {
+      const files = await Promise.all(GIFT_PHOTOS.map(async (src, i) => {
+        const res = await fetch(src);
+        const blob = await res.blob();
+        return new File([blob], `Carlos-cumpleanos-${i + 1}.png`, { type: blob.type || 'image/png' });
+      }));
+      if (navigator.canShare && navigator.canShare({ files })){
+        await navigator.share({ files, title: 'Fotos de cumpleaños de Carlos' });
+        return;
+      }
+    } catch (err){
+      if (err && err.name === 'AbortError') return; // el usuario cerró el panel, respetamos su elección
+      // si algo falla (fetch, etc.), seguimos con la descarga directa como respaldo
+    }
+  }
+  downloadPhotos();
+});
 
 window.addEventListener('resize', () => {
   if (scrollOpen.classList.contains('visible')) setTargetHeight();

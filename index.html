@@ -370,19 +370,19 @@
 
   .gift-inner{ max-width:1080px; width:100%; text-align:center; }
 
-  .gift-title{
-    font-family:'Pirata One', cursive;
-    font-size:clamp(32px, 6vw, 54px);
-    letter-spacing:1px;
-    color:var(--gold-bright);
-    text-shadow:0 0 18px rgba(255,150,60,0.45), 0 2px 4px rgba(0,0,0,0.6);
-    margin:0 0 10px;
-  }
-  .gift-subtitle{
+  /* Único encabezado de la pantalla de regalo: hace las veces de título pero
+     con la serif itálica (Almendra), no con la blackletter gruesa (Pirata
+     One) que usaba el título anterior — se ve bien en mobile sin sentirse
+     tan pesado. */
+  .gift-heading{
     font-family:'Almendra', serif;
+    font-weight:700;
     font-style:italic;
-    color:var(--gold);
-    font-size:clamp(20px, 3vw, 28px);
+    color:var(--gold-bright);
+    font-size:clamp(26px, 5.2vw, 40px);
+    line-height:1.3;
+    letter-spacing:0.5px;
+    text-shadow:0 0 14px rgba(255,150,60,0.35), 0 2px 4px rgba(0,0,0,0.5);
     margin:0 0 38px;
   }
 
@@ -405,13 +405,6 @@
   .gift-frame:hover{
     transform:translateY(-6px) scale(1.02);
     box-shadow:0 22px 40px rgba(0,0,0,0.6), 0 0 0 4px var(--gold-bright);
-  }
-  .gift-hint{
-    font-family:'Almendra', serif;
-    font-size:13px;
-    color:var(--gold);
-    opacity:0.85;
-    margin:14px 0 0;
   }
   .gift-frame img{
     display:block;
@@ -457,8 +450,7 @@
   <!-- Pantalla de regalo: fotos + descarga, aparece tras cerrar el pergamino -->
   <div class="gift-screen" id="giftScreen">
     <div class="gift-inner">
-      <h2 class="gift-title">Un regalo para ti, Carlos</h2>
-      <p class="gift-subtitle">Guarda estos recuerdos de tu día ⚔</p>
+      <h2 class="gift-heading">Guarda los recuerdos de tu día ⚔</h2>
       <!-- Vista previa: miniaturas livianas (fotos/thumbs) para que carguen rápido.
            La descarga real usa siempre el PNG original en fotos/, a calidad y
            peso completos — ver GIFT_PHOTOS más abajo. -->
@@ -469,7 +461,6 @@
         <div class="gift-frame"><img src="fotos/thumbs/felicidades-carlos.jpg" loading="lazy" decoding="async" alt="Mensaje de cumpleaños para Carlos"></div>
       </div>
       <button class="toast-btn" id="downloadBtn">⬇ Descargar mis fotos</button>
-      <p class="gift-hint">En iPhone/iPad se abrirá el panel para compartir: toca "Guardar imagen" para que caigan en tu Galería. En Android o computadora, si el navegador pregunta por permiso para descargar varios archivos, elige "Permitir".</p>
     </div>
   </div>
 
